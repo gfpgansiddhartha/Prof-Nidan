@@ -2,52 +2,42 @@ import streamlit as st
 from streamlit_gsheets import GSheetsConnection
 import google.generativeai as genai
 from PIL import Image
-import smtplib
-from email.mime.text import MIMEText
-from email.mime.multipart import MIMEMultipart
-import random, string, pandas as pd, io
-from gtts import gTTS
-import streamlit.components.v1 as components
+import pandas as pd
 
-# --- 1. SYSTEM INITIALIZATION ---
-st.set_page_config(page_title="PROF. NIDAN AI | Science & Care", layout="wide", page_icon="🔬")
-
-# DIRECT GOOGLE SHEET URL
+# --- 1. SETTINGS ---
+st.set_page_config(page_title="PROF. NIDAN AI", layout="wide")
 SHEET_URL = "https://docs.google.com/spreadsheets/d/1zvIl5jEfW7IVaQAejssbZOouFoCxTwJ5AqYtCUQLJy0/edit"
 
-# Initialize Connection
+# --- 2. DATABASE CONNECTION ---
+conn = None
 try:
+    # This tries to connect to your Google Sheet
     conn = st.connection("gsheets", type=GSheetsConnection)
 except Exception as e:
-    st.error(f"📡 Connection Offline: {e}")
+    st.error(f"📡 Connection Failed: {e}")
 
-# --- EMAIL FUNCTION ---
-def send_security_mail(receiver, otp):
-    try:
-        sender = st.secrets["EMAIL_USERNAME"]
-        pwd = st.secrets["EMAIL_PASSWORD"]
-        msg = MIMEMultipart(); msg['From'] = f"PROF. NIDAN Support <{sender}>"; msg['To'] = receiver; msg['Subject'] = f"Code: {otp}"
-        msg.attach(MIMEText(f"Your code is: {otp}", 'plain'))
-        server = smtplib.SMTP("smtp.gmail.com", 587); server.starttls(); server.login(sender, pwd); server.send_message(msg); server.quit()
-        return True
-    except: return False
+# --- 3. UI ---
+st.title("🔬 PROF. NIDAN AI DASHBOARD")
 
-# --- AUTHENTICATION & UI ---
-if "auth" not in st.session_state: st.session_state.auth = False
-if "step" not in st.session_state: st.session_state.step = 1
-
-if not st.session_state.auth:
-    t_log, t_reg = st.tabs(["🔐 Login", "📝 Register"])
-    with t_log:
-        em = st.text_input("Email", key="l_em")
-        pw = st.text_input("Password", type="password", key="l_pw")
-        if st.button("LOGIN"):
+if conn is not None:
+    tab1, tab2 = st.tabs(["🔐 Login", "📝 Register"])
+    
+    with tab1:
+        email = st.text_input("Email")
+        password = st.text_input("Password", type="password")
+        if st.button("Log In"):
             try:
                 df = conn.read(spreadsheet=SHEET_URL, worksheet="Users", ttl=0)
-                if not df[df['Email'] == em].empty:
-                    st.session_state.auth = True; st.rerun()
-                else: st.error("User not found.")
-            except Exception as e: st.error(f"Error: {e}")
+                user = df[df['Email'] == email]
+                if not user.empty and str(user.iloc[0]['Password']) == password:
+                    st.success(f"Welcome {email}!")
+                    st.balloons()
+                else:
+                    st.error("Invalid Email or Password")
+            except Exception as e:
+                st.error(f"Database Error: {e}")
+                
+    with tab2:
+        st.info("Registration is currently handled by Admin.")
 else:
-    st.success("Welcome to PROF. NIDAN!")
-    if st.button("Logout"): st.session_state.auth = False; st.rerun()
+    st.warning("Please check your Streamlit Secrets for Google Sheets configuration.")
