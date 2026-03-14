@@ -1,43 +1,43 @@
->>> import streamlit as st
-... from PIL import Image
-... import google.generativeai as genai
-... import pandas as pd
-... import time
-... import datetime
-... import os
-... import secrets
-... import string
-... import random
-... import io
-... import pytz
-... from gtts import gTTS
-... 
-... # --- 1. GLOBAL TIMEZONE CONFIGURATION ---
-... # Syncing with Indian Standard Time (IST)
-... LOCAL_TZ = pytz.timezone('Asia/Kolkata')
-... 
-... def get_local_now():
-...     """Returns the current local time in IST."""
-...     return datetime.datetime.now(LOCAL_TZ)
-... 
-... def get_local_today():
-...     """Returns the current local date in IST."""
-...     return get_local_now().date()
-... 
-... # --- 2. CORE SYSTEM CONFIGURATION ---
-... st.set_page_config(
-...     page_title="Prof. Nidan | Clinical Intelligence Suite", 
-...     layout="wide", 
-...     page_icon="⚖️"
-... )
-... 
-... # Authentication for Gemini AI
-... if "GEMINI_API_KEY" in st.secrets:
-...     genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
-... 
-... # --- 3. DATA PERSISTENCE & UTILITIES ---
-... VAULT_FILE = "prof_nidan_master_vault.csv"
-... 
+import streamlit as st
+from PIL import Image
+import google.generativeai as genai
+import pandas as pd
+import time
+import datetime
+import os
+import secrets
+import string
+import random
+import io
+import pytz
+from gtts import gTTS
+
+# --- 1. GLOBAL TIMEZONE CONFIGURATION ---
+# Syncing with Indian Standard Time (IST)
+LOCAL_TZ = pytz.timezone('Asia/Kolkata')
+
+def get_local_now():
+    """Returns the current local time in IST."""
+    return datetime.datetime.now(LOCAL_TZ)
+
+def get_local_today():
+    """Returns the current local date in IST."""
+    return get_local_now().date()
+
+# --- 2. CORE SYSTEM CONFIGURATION ---
+st.set_page_config(
+    page_title="Prof. Nidan | Clinical Intelligence Suite", 
+    layout="wide", 
+    page_icon="⚖️"
+)
+
+# Authentication for Gemini AI
+if "GEMINI_API_KEY" in st.secrets:
+    genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
+
+# --- 3. DATA PERSISTENCE & UTILITIES ---
+VAULT_FILE = "prof_nidan_master_vault.csv"
+
 def load_vault():
     """Loads patient records from the local CSV file."""
     if os.path.exists(VAULT_FILE):
