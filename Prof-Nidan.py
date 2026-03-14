@@ -92,4 +92,4 @@ def send_security_mail(receiver, otp):
         sender = st.secrets["EMAIL_USERNAME"]
         pwd = st.secrets["EMAIL_PASSWORD"]
         msg = MIMEMultipart(); msg['From'] = f"PROF. NIDAN Support <{sender}>"; msg['To'] = receiver; msg['Subject'] = f"Verification Code: {otp}"
-        msg.attach(MIMEText(f"Your clinical access verification code is: {otp}\nDo not share this code."
+        msg.attach(MIMEText(f"Your clinical access verification code is: {otp}\nDo not share this code."'plain'))
