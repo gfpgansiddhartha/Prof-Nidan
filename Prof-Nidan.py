@@ -13,7 +13,6 @@ import streamlit.components.v1 as components
 st.set_page_config(page_title="PROF. NIDAN AI | Science & Care", layout="wide", page_icon="🔬")
 
 def validate_config():
-    """Checks if all required secrets are present."""
     required = ["GEMINI_API_KEY", "EMAIL_USERNAME", "EMAIL_PASSWORD", "ADMIN_PASSWORD"]
     for key in required:
         if key not in st.secrets:
@@ -41,7 +40,7 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# --- 3. DYNAMIC BANNER SLIDER (10 Alternate Slides: Tech & Charity) ---
+# --- 3. DYNAMIC BANNER SLIDER ---
 def render_nidan_banner():
     slider_html = """
     <div style="width:100%; border-radius:20px; overflow:hidden; height:380px; position:relative; box-shadow: 0 10px 30px rgba(0,0,0,0.2);">
@@ -55,14 +54,7 @@ def render_nidan_banner():
         const s = [
             {i: "https://images.unsplash.com/photo-1579154235602-3c2c249bc918?q=80&w=1200", t: "Clinical AI Engine 🧬", d: "High-precision diagnostic report analysis"},
             {i: "https://images.unsplash.com/photo-1488521787991-ed7bbaae773c?q=80&w=1200", t: "Our Social Mission ❤️", d: "Funding treatment for underprivileged children"},
-            {i: "https://images.unsplash.com/photo-1532187863486-abf9d39d6618?q=80&w=1200", t: "Forensic Intelligence 🔬", d: "Scientific identification of medical specimens"},
-            {i: "https://images.unsplash.com/photo-1532629345422-7515f3d16bb6?q=80&w=1200", t: "Charity & Trust 🕊", d: "Providing free healthcare support to those in need"},
-            {i: "https://images.unsplash.com/photo-1576086213369-97a306d36557?q=80&w=1200", t: "Advanced Lab Tech 💻", d: "Empowering healthcare with AI-driven insights"},
-            {i: "https://images.unsplash.com/photo-1593113598332-cd288d649433?q=80&w=1200", t: "Transparency & Trust", d: "Every analysis contributes to our social health mission"},
-            {i: "https://images.unsplash.com/photo-1551288049-bebda4e38f71?q=80&w=1200", t: "Global Research Data", d: "Analyzing clinical cases across 10,000+ databases"},
-            {i: "https://images.unsplash.com/photo-1509099836639-18ba1795216d?q=80&w=1200", t: "Community Outreach", d: "Bringing medical kits to remote rural areas"},
-            {i: "https://images.unsplash.com/photo-1518152006812-edab29b069ac?q=80&w=1200", t: "Secure Digital Lab", d: "Encrypted and private environment for clinical data"},
-            {i: "https://images.unsplash.com/photo-1469571486292-0ba58a3f068b?q=80&w=1200", t: "United For Humanity", d: "Bridging the gap between Technology and Charity"}
+            {i: "https://images.unsplash.com/photo-1532187863486-abf9d39d6618?q=80&w=1200", t: "Forensic Intelligence 🔬", d: "Scientific identification of medical specimens"}
         ];
         let c = 0;
         setInterval(() => {
@@ -84,7 +76,7 @@ def render_nidan_banner():
 try:
     conn = st.connection("gsheets", type=GSheetsConnection)
 except Exception as e:
-    st.error(f"📡 Database Offline: {e}")
+    st.error(f"📡 Initial Connection Offline: {e}")
 
 def send_security_mail(receiver, otp):
     try:
@@ -125,7 +117,9 @@ if not st.session_state.auth:
                             if send_security_mail(em, otp): st.session_state.step = 2; st.rerun()
                             else: st.error("Email service busy.")
                         else: st.error("❌ Invalid Credentials.")
-                    except: st.error("📡 Database connection failed.")
+                    except Exception as e: 
+                        # 🚨 আসল এরর মেসেজ এখানে দেখাবে 🚨
+                        st.error(f"📡 Login Error Details: {str(e)}")
             else:
                 code = st.text_input("Enter 4-Letter Code", max_chars=4).upper()
                 if st.button("CONFIRM LOGIN"):
@@ -145,10 +139,13 @@ if not st.session_state.auth:
                             new_row = pd.DataFrame([{"Email": rem, "Password": rpw}])
                             conn.update(worksheet="Users", data=pd.concat([df, new_row], ignore_index=True))
                             st.success("✅ Account Created! Please Login.")
-                    except: st.error("📡 Database busy.")
+                    except Exception as e: 
+                        # 🚨 আসল এরর মেসেজ এখানে দেখাবে 🚨
+                        st.error(f"📡 Register Error Details: {str(e)}")
         st.markdown('</div>', unsafe_allow_html=True)
 
-else: # --- MAIN DASHBOARD ---
+else: 
+    # --- MAIN DASHBOARD ---
     st.sidebar.markdown(f"Verified User:\n{st.session_state.email}")
     if st.sidebar.button("Logout"): st.session_state.auth = False; st.session_state.step = 1; st.rerun()
 
@@ -169,48 +166,19 @@ else: # --- MAIN DASHBOARD ---
                         report = res.text
                         st.markdown(f"### Diagnostic Summary:\n{report}")
                         
-                        # Audio
                         tts = gTTS(text=report, lang='en' if lang=="English" else ('bn' if lang=="Bengali" else 'hi'))
                         v_io = io.BytesIO(); tts.write_to_fp(v_io); st.audio(v_io)
-                        
-                        # Text Download (Replaces PDF to fix Unicode Error)
-                        st.download_button(
-                            label="📄 Download Report (TXT)", 
-                            data=report.encode('utf-8'), 
-                            file_name="Diagnostic_Report.txt", 
-                            mime="text/plain"
-                        )
-                    except Exception as e: 
-                        st.error(f"🤖 Analysis Engine Error: {e}")
+                        st.download_button("📄 Download Report (TXT)", report.encode('utf-8'), "Diagnostic_Report.txt", "text/plain")
+                    except Exception as e: st.error(f"🤖 Analysis Error: {e}")
 
     with side:
-        # --- DYNAMIC IMPACT COUNTER ---
         st.markdown('<div class="impact-stats">', unsafe_allow_html=True)
         st.markdown("### 🕊 Social Impact")
         try:
             charity_df = conn.read(worksheet="Charity", ttl=0)
-            if not charity_df.empty and 'Type' in charity_df.columns:
-                p_val = charity_df[charity_df['Type'] == 'Patients']['Value'].values[0]
-                f_val = charity_df[charity_df['Type'] == 'Fund']['Value'].values[0]
-                st.metric("Lives Impacted", f"{p_val}+")
-                st.metric("Charity Fund", f"₹{f_val}")
-            else:
-                st.metric("Lives Impacted", "1,200+")
-                st.metric("Charity Fund", "₹10,000")
+            st.metric("Lives Impacted", f"{charity_df[charity_df['Type'] == 'Patients']['Value'].values[0]}+")
+            st.metric("Charity Fund", f"₹{charity_df[charity_df['Type'] == 'Fund']['Value'].values[0]}")
         except:
             st.metric("Lives Impacted", "1,200+")
             st.metric("Charity Fund", "₹10,000")
         st.markdown('</div>', unsafe_allow_html=True)
-
-        st.markdown("---")
-        st.warning("🤝 Request Assistance")
-        st.write("Need free clinical aid? Log a request below.")
-        req = st.text_area("Describe your case...")
-        if st.button("Submit Ticket"):
-            if req:
-                try:
-                    t_df = conn.read(worksheet="Tickets", ttl=0)
-                    new_t = pd.DataFrame([{"Email": st.session_state.email, "Request": req, "Status": "Pending"}])
-                    conn.update(worksheet="Tickets", data=pd.concat([t_df, new_t], ignore_index=True))
-                    st.success("Ticket submitted successfully.")
-                except: st.error("📡 Database busy.")
