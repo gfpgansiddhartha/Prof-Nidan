@@ -1,9 +1,7 @@
 streamlit
+st-gsheets-connection
 google-generativeai
 Pillow
 pandas
-pytz
 gTTS
-openpyxl
-st-gsheets-connection
 fpdf
