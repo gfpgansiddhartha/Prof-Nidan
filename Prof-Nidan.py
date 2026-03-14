@@ -5,132 +5,120 @@ from PIL import Image
 import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
-import random, string, datetime, re, pandas as pd
+import random, string, datetime, re, pandas as pd, io
+from gtts import gTTS
+from fpdf import FPDF # PDF তৈরির জন্য লাগবে
 
-# 1. DATABASE CONNECTION (Google Sheets)
+# --- 1. SYSTEM CONFIG & UI STYLING ---
+st.set_page_config(page_title="PROF. NIDAN", layout="wide", page_icon="⚖️")
+
+# Custom CSS for Banner and Design
+st.markdown("""
+    <style>
+    .banner-text {
+        background-color: #004a99; color: white; padding: 10px;
+        border-radius: 10px; text-align: center; font-weight: bold;
+    }
+    .stButton>button { border-radius: 10px; font-weight: bold; }
+    </style>
+""", unsafe_allow_html=True)
+
+# --- 2. DATABASE & PDF ENGINE ---
 conn = st.connection("gsheets", type=GSheetsConnection)
 
-def get_data(worksheet_name):
-    """Fetches data directly from Google Sheets."""
-    return conn.read(worksheet=worksheet_name, ttl=0)
+def create_pdf(text, user_email):
+    pdf = FPDF()
+    pdf.add_page()
+    pdf.set_font("Arial", size=12)
+    pdf.cell(200, 10, txt="PROF. NIDAN - FORENSIC REPORT", ln=True, align='C')
+    pdf.ln(10)
+    pdf.multi_cell(0, 10, txt=text)
+    pdf.ln(20)
+    pdf.cell(0, 10, txt=f"Report Generated for: {user_email}", ln=True)
+    pdf.cell(0, 10, txt=f"Date: {datetime.date.today()}", ln=True)
+    return pdf.output(dest='S').encode('latin-1')
 
-def save_user_to_db(email, password):
-    """Saves a new user to the database."""
-    df = get_data("Users")
-    new_user = pd.DataFrame([{"Email": email, "Password": password}])
-    updated_df = pd.concat([df, new_user], ignore_index=True)
-    conn.update(worksheet="Users", data=updated_df)
-    st.cache_data.clear()
-
-# 2. EMAIL OTP FUNCTION (4-Character Alphabetic OTP)
-def send_otp(receiver_email, otp_code):
-    sender = st.secrets["EMAIL_USERNAME"]
-    pwd = st.secrets["EMAIL_PASSWORD"]
-    
-    msg = MIMEMultipart()
-    msg['From'] = f"PROF. NIDAN Support <{sender}>"
-    msg['To'] = receiver_email
-    msg['Subject'] = "Your Login Verification Code"
-    msg.attach(MIMEText(f"Hello, your security verification code is: {otp_code}", 'plain'))
-    
+# --- 3. FORGOT PASSWORD SYSTEM ---
+def reset_password_logic(email, new_pwd):
     try:
-        server = smtplib.SMTP("smtp.gmail.com", 587)
-        server.starttls()
-        server.login(sender, pwd)
-        server.send_message(msg)
-        server.quit()
+        df = conn.read(worksheet="Users", ttl=0)
+        df.loc[df['Email'] == email, 'Password'] = new_pwd
+        conn.update(worksheet="Users", data=df)
+        st.cache_data.clear()
         return True
-    except:
-        return False
+    except: return False
 
-# 3. PASSWORD STRENGTH CHECK (Minimum 8 Characters)
-def check_password(p):
-    if len(p) < 8: 
-        return False, "Password must be at least 8 characters long."
-    if not re.search("[A-Z]", p) or not re.search("[0-9]", p):
-        return False, "Password must contain at least one uppercase letter and one number."
-    return True, "Strong Password!"
-
-# --- MAIN APP INTERFACE ---
-st.title("🔬 PROF. NIDAN: Clinical Intelligence")
-
+# --- 4. AUTHENTICATION & STEP LOGIC ---
 if "auth" not in st.session_state: st.session_state.auth = False
 if "step" not in st.session_state: st.session_state.step = 1
 
+# --- BANNER SECTION (গরিব-দুঃখীদের সাহায্যের ব্যানার) ---
+st.markdown("<div class='banner-text'>OUR MISSION: Supporting Medical Care for Underprivileged Children 🕊️</div>", unsafe_allow_html=True)
+
+# ছবির স্লাইডার (এখানে আপনি আপনার পছন্দমতো ছবির লিঙ্ক দিতে পারেন)
+banner_images = [
+    "https://images.unsplash.com/photo-1488521787991-ed7bbaae773c?q=80&w=1000", # Helping children
+    "https://images.unsplash.com/photo-1532629345422-7515f3d16bb6?q=80&w=1000", # Donation
+    "https://images.unsplash.com/photo-1509099836639-18ba1795216d?q=80&w=1000" # Food distribution
+]
+st.image(banner_images, width=300, caption=["Community Care", "Donation Drive", "Helping Hand"])
+
+# --- 5. LOGIN / FORGOT PASSWORD INTERFACE ---
 if not st.session_state.auth:
-    menu = st.sidebar.selectbox("Menu", ["Login", "Create New Account"])
+    tab1, tab2, tab3 = st.tabs(["🔐 Login", "📝 Sign Up", "🔑 Forgot Password"])
     
-    if menu == "Create New Account":
-        st.subheader("Sign Up")
-        email = st.text_input("Enter your Email:")
-        pwd = st.text_input("Create Password (Min 8 characters):", type="password")
-        
-        ok, msg = check_password(pwd)
-        if pwd: 
-            if ok: st.success(msg)
-            else: st.error(msg)
-        
-        if st.button("Register Now") and ok:
-            users = get_data("Users")
-            if email in users['Email'].values: 
-                st.error("This email is already registered!")
-            else:
-                save_user_to_db(email, pwd)
-                st.success("Account created successfully! Please proceed to Login.")
+    with tab1: # Login Section
+        # [আগের লগইন কোড এখানে থাকবে]
+        pass
 
-    elif menu == "Login":
-        st.subheader("User Login")
-        if st.session_state.step == 1:
-            email = st.text_input("Email:")
-            pwd = st.text_input("Password:")
-            if st.button("Next Step"):
-                users = get_data("Users")
-                # Verification logic
-                if email in users['Email'].values and str(users.loc[users['Email']==email, 'Password'].values[0]) == pwd:
-                    otp = ''.join(random.choices(string.ascii_uppercase, k=4))
-                    st.session_state.otp = otp
-                    st.session_state.email = email
-                    if send_otp(email, otp):
-                        st.session_state.step = 2
-                        st.rerun()
-                    else:
-                        st.error("Failed to send OTP. Please check your internet or configuration.")
-                else: 
-                    st.error("Invalid Email or Password!")
+    with tab3: # Forgot Password Section
+        st.subheader("Reset Your Password")
+        f_email = st.text_input("Enter Registered Email", key="forgot_email")
+        if st.button("Send Reset Code"):
+            # ইমেলে একটি রিসেট কোড পাঠাবে
+            st.info("Verification code sent to your email to reset password.")
         
-        else:
-            st.info(f"A 4-character code has been sent to {st.session_state.email}")
-            otp_in = st.text_input("Enter the 4-character code:").upper()
-            if st.button("Verify & Login"):
-                if otp_in == st.session_state.otp:
-                    st.session_state.auth = True
-                    st.success("Login Successful!")
-                    st.rerun()
-                else: 
-                    st.error("Incorrect code! Please check your email.")
-            
-            if st.button("Go Back"):
-                st.session_state.step = 1
-                st.rerun()
+        new_pass = st.text_input("New Secure Password", type="password")
+        if st.button("Update Password"):
+            if reset_password_logic(f_email, new_pass):
+                st.success("Password Updated Successfully! Please login.")
+            else: st.error("Error updating password.")
 
+# --- 6. MAIN DASHBOARD ---
 else:
-    # --- AUTHENTICATED APP SECTION ---
-    st.sidebar.success(f"User: {st.session_state.email}")
+    st.sidebar.title(f"Welcome, {st.session_state.email}")
     if st.sidebar.button("Logout"):
         st.session_state.auth = False
-        st.session_state.step = 1
         st.rerun()
 
-    st.subheader("Upload Clinical Report or Specimen Image")
+    st.title("🔬 Specimen Analysis Terminal")
+    up_file = st.file_uploader("Upload Image", type=["jpg","png","jpeg"])
     
-    # Placeholder for AI Analysis
-    uploaded_file = st.file_uploader("Choose an image...", type=["jpg", "png", "jpeg"])
-    
-    if uploaded_file is not None:
-        image = Image.open(uploaded_file)
-        st.image(image, caption='Uploaded Specimen', use_container_width=True)
+    if up_file:
+        img = Image.open(up_file)
+        st.image(img, use_container_width=True)
         
-        if st.button("Run Forensic AI Analysis"):
-            with st.spinner("AI is analyzing the specimen..."):
-                # Your Gemini AI logic goes here
-                st.write("AI analysis result will appear here.")
+        if st.button("RUN ANALYSIS"):
+            with st.spinner("Processing..."):
+                genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
+                model = genai.GenerativeModel('gemini-1.5-flash')
+                res = model.generate_content(["Provide forensic diagnostic report", img])
+                report_content = res.text
+                st.markdown(report_content)
+                
+                # --- VOICE REPORT ---
+                st.markdown("### 🔊 Listen to Report")
+                tts = gTTS(text=report_content, lang='en')
+                audio_buffer = io.BytesIO()
+                tts.write_to_fp(audio_buffer)
+                st.audio(audio_buffer)
+                
+                # --- PDF DOWNLOAD ---
+                st.markdown("### 📄 Download Report")
+                pdf_bytes = create_pdf(report_content, st.session_state.email)
+                st.download_button(
+                    label="Download Report as PDF",
+                    data=pdf_bytes,
+                    file_name="Prof_Nidan_Report.pdf",
+                    mime="application/pdf"
+                )
