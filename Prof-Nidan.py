@@ -2,48 +2,47 @@ import streamlit as st
 from streamlit_gsheets import GSheetsConnection
 import google.generativeai as genai
 from PIL import Image
-import pandas as pd
 
-# --- 1. BASIC SETTINGS ---
+# --- 1. SYSTEM INITIALIZATION ---
 st.set_page_config(page_title="PROF. NIDAN AI", layout="wide")
 SHEET_URL = "https://docs.google.com/spreadsheets/d/1zvIl5jEfW7IVaQAejssbZOouFoCxTwJ5AqYtCUQLJy0/edit"
 
-# --- 2. DATABASE CONNECTION ---
+# Initialize Connection with Error Handling
 conn = None
 try:
-    # Trying to connect with Secrets
     conn = st.connection("gsheets", type=GSheetsConnection)
 except Exception as e:
-    st.error(f"📡 Connection Status: {e}")
+    st.error(f"📡 Connection Failed: {e}")
 
-# --- 3. UI DASHBOARD ---
+# --- 2. UI DASHBOARD ---
 st.title("🔬 PROF. NIDAN AI")
 
 if conn is not None:
-    st.success("Successfully Connected to Database!")
-    email = st.text_input("Enter Email to Log In")
-    password = st.text_input("Enter Password", type="password")
+    # ডাটাবেস সচল থাকলে এটি দেখাবে
+    email = st.text_input("Email", key="login_em")
+    password = st.text_input("Password", type="password", key="login_pw")
     
-    if st.button("Log In"):
+    if st.button("Access Dashboard"):
         try:
             df = conn.read(spreadsheet=SHEET_URL, worksheet="Users", ttl=0)
-            user = df[df['Email'] == email]
-            if not user.empty and str(user.iloc[0]['Password']) == password:
+            user_match = df[df['Email'] == email]
+            if not user_match.empty and str(user_match.iloc[0]['Password']) == password:
+                st.success(f"Welcome, {email}!")
                 st.balloons()
-                st.write(f"Welcome back, {email}!")
-                # AI Feature
-                file = st.file_uploader("Upload Report", type=["jpg", "png"])
+                # --- AI PART ---
+                file = st.file_uploader("Upload Medical Image", type=["jpg", "png"])
                 if file:
                     img = Image.open(file)
                     st.image(img)
-                    if st.button("Analyze"):
+                    if st.button("Analyze with Gemini"):
                         genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
                         model = genai.GenerativeModel('gemini-1.5-flash')
-                        res = model.generate_content(["Analyze this report", img])
+                        res = model.generate_content(["Describe this clinical specimen", img])
                         st.write(res.text)
             else:
-                st.error("Invalid Credentials")
+                st.error("Invalid Login Details.")
         except Exception as e:
-            st.error(f"Error reading data: {e}")
+            st.error(f"Database Error: {e}")
 else:
-    st.warning("⚠️ Waiting for Database to wake up...")
+    # কানেকশন না হলে এটি দেখাবে
+    st.warning("⚠️ Waiting for Database connection... Please check Secrets.")
