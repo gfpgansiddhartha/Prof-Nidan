@@ -92,4 +92,8 @@ def send_security_mail(receiver, otp):
         sender = st.secrets["EMAIL_USERNAME"]
         pwd = st.secrets["EMAIL_PASSWORD"]
         msg = MIMEMultipart(); msg['From'] = f"PROF. NIDAN Support <{sender}>"; msg['To'] = receiver; msg['Subject'] = f"Verification Code: {otp}"
-        msg.attach(MIMEText(f"Your clinical access verification code is: {otp}\nDo not share this code."'plain'))
+        msg.attach(MIMEText(f"Your clinical access verification code is: {otp}\nDo not share this code.", 'plain'))
+        server = smtplib.SMTP("smtp.gmail.com", 587); server.starttls(); server.login(sender, pwd); server.send_message(msg); server.quit()
+        return True
+    except: return False
+        
