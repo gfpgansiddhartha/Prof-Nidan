@@ -1,4 +1,4 @@
-mport streamlit as sti
+import streamlit as st
 from streamlit_gsheets import GSheetsConnection
 import google.generativeai as genai
 from PIL import Image
