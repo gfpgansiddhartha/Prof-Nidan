@@ -2,34 +2,30 @@ import streamlit as st
 from streamlit_gsheets import GSheetsConnection
 import pandas as pd
 
-st.title("🔍 Deep Database Diagnostics")
+st.title("🚀 PROF. NIDAN - Final Launch")
 
-# ১. সিক্রেটস চেক
-st.subheader("Step 1: Checking Secrets")
-if "gsheets" in st.secrets:
-    st.success("✅ 'gsheets' section found in Secrets.")
-else:
-    st.error("❌ 'gsheets' section NOT found in Secrets. Please check the [gsheets] header.")
-    st.stop()
-
-# ২. কানেকশন এবং এরর চেক
-st.subheader("Step 2: Testing Connection")
 try:
+    # ১. ডাটাবেস কানেকশন
     conn = st.connection("gsheets", type=GSheetsConnection)
     
-    # এখানে আপনার শিটের নামগুলো একে একে টেস্ট করা হবে
-    sheet_names = ["Users", "Charity", "Tickets"]
+    # ২. ডাটা পড়ার চেষ্টা (Users শিট থেকে)
+    # খেয়াল করুন: আপনার শিটের নাম যেন হুবহু 'Users' হয়
+    df = conn.read(worksheet="Users", ttl=0)
     
-    for name in sheet_names:
-        try:
-            df = conn.read(worksheet=name, ttl=0)
-            st.success(f"✅ Successfully read worksheet: '{name}'")
-            st.write(f"Preview of {name}:", df.head(2))
-        except Exception as e:
-            st.warning(f"⚠️ Could not read worksheet '{name}'. Error: {e}")
-            st.info(f"Is the worksheet name in Google Sheets exactly '{name}'?")
+    st.success("✅ অভিনন্দন সিদ্ধার্থ! ডাটাবেস একদম নিখুঁতভাবে কানেক্ট হয়েছে।")
+    st.write("### Users Database Preview:")
+    st.dataframe(df.head())
+    
+    st.info("আপনার ডাটাবেস এখন লাইভ। এবার কি আমি মেইন অ্যাপের বাকি কোডগুলো যোগ করে দেব?")
 
 except Exception as e:
-    st.error("❌ Connection Failed Completely!")
-    st.write("### Technical Error Details:")
-    st.code(str(e))
+    st.error("❌ কানেকশন এখনো সফল হয়নি।")
+    st.write("### 🔍 সমস্যার আসল কারণ:")
+    error_msg = str(e)
+    
+    if "WorksheetNotFound" in error_msg:
+        st.warning("⚠️ আপনার গুগল শিটের নামের সাথে কোডের নামের মিল নেই। গুগল শিটের নিচের ট্যাবে গিয়ে নাম বদলে 'Users' করে দিন।")
+    elif "RefreshError" in error_msg or "invalid_grant" in error_msg:
+        st.warning("⚠️ Private Key-তে সমস্যা। Secrets বক্স থেকে আগের সব মুছে নতুন করে আমার দেওয়া কী-টি বসান।")
+    else:
+        st.code(error_msg)
