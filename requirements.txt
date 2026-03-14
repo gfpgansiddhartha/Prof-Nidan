@@ -5,3 +5,4 @@ pandas
 pytz
 gTTS
 openpyxl
+st-gsheets-connection
