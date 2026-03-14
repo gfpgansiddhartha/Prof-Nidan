@@ -12,6 +12,9 @@ import streamlit.components.v1 as components
 # --- 1. SYSTEM INITIALIZATION ---
 st.set_page_config(page_title="PROF. NIDAN AI | Science & Care", layout="wide", page_icon="🔬")
 
+# DIRECT GOOGLE SHEET URL
+SHEET_URL = "https://docs.google.com/spreadsheets/d/1zvIl5jEfW7IVaQAejssbZOouFoCxTwJ5AqYtCUQLJy0/edit"
+
 def validate_config():
     required = ["GEMINI_API_KEY", "EMAIL_USERNAME", "EMAIL_PASSWORD", "ADMIN_PASSWORD"]
     for key in required:
@@ -109,7 +112,8 @@ if not st.session_state.auth:
                     if em == st.secrets["EMAIL_USERNAME"] and pw == st.secrets["ADMIN_PASSWORD"]:
                         st.session_state.auth = True; st.session_state.email = em; st.rerun()
                     try:
-                        df = conn.read(worksheet="Users", ttl=0)
+                        # Read data from database
+                        df = conn.read(spreadsheet=SHEET_URL, worksheet="Users", ttl=0)
                         match = df[df['Email'] == em]
                         if not match.empty and str(match.iloc[0]['Password']) == pw:
                             otp = ''.join(random.choices(string.ascii_uppercase, k=4))
@@ -118,7 +122,6 @@ if not st.session_state.auth:
                             else: st.error("Email service busy.")
                         else: st.error("❌ Invalid Credentials.")
                     except Exception as e: 
-                        # 🚨 আসল এরর মেসেজ এখানে দেখাবে 🚨
                         st.error(f"📡 Login Error Details: {str(e)}")
             else:
                 code = st.text_input("Enter 4-Letter Code", max_chars=4).upper()
@@ -133,14 +136,14 @@ if not st.session_state.auth:
                 if len(rpw) < 8: st.warning("Password must be 8+ characters.")
                 else:
                     try:
-                        df = conn.read(worksheet="Users", ttl=0)
+                        # Save new account to database
+                        df = conn.read(spreadsheet=SHEET_URL, worksheet="Users", ttl=0)
                         if rem in df['Email'].values: st.error("Email already exists.")
                         else:
                             new_row = pd.DataFrame([{"Email": rem, "Password": rpw}])
-                            conn.update(worksheet="Users", data=pd.concat([df, new_row], ignore_index=True))
+                            conn.update(spreadsheet=SHEET_URL, worksheet="Users", data=pd.concat([df, new_row], ignore_index=True))
                             st.success("✅ Account Created! Please Login.")
                     except Exception as e: 
-                        # 🚨 আসল এরর মেসেজ এখানে দেখাবে 🚨
                         st.error(f"📡 Register Error Details: {str(e)}")
         st.markdown('</div>', unsafe_allow_html=True)
 
@@ -175,10 +178,23 @@ else:
         st.markdown('<div class="impact-stats">', unsafe_allow_html=True)
         st.markdown("### 🕊 Social Impact")
         try:
-            charity_df = conn.read(worksheet="Charity", ttl=0)
+            charity_df = conn.read(spreadsheet=SHEET_URL, worksheet="Charity", ttl=0)
             st.metric("Lives Impacted", f"{charity_df[charity_df['Type'] == 'Patients']['Value'].values[0]}+")
             st.metric("Charity Fund", f"₹{charity_df[charity_df['Type'] == 'Fund']['Value'].values[0]}")
         except:
             st.metric("Lives Impacted", "1,200+")
             st.metric("Charity Fund", "₹10,000")
         st.markdown('</div>', unsafe_allow_html=True)
+
+        st.markdown("---")
+        st.warning("🤝 Request Assistance")
+        st.write("Need free clinical aid? Log a request below.")
+        req = st.text_area("Describe your case...")
+        if st.button("Submit Ticket"):
+            if req:
+                try:
+                    t_df = conn.read(spreadsheet=SHEET_URL, worksheet="Tickets", ttl=0)
+                    new_t = pd.DataFrame([{"Email": st.session_state.email, "Request": req, "Status": "Pending"}])
+                    conn.update(spreadsheet=SHEET_URL, worksheet="Tickets", data=pd.concat([t_df, new_t], ignore_index=True))
+                    st.success("Ticket submitted successfully.")
+                except: st.error("📡 Database busy.")
